@@ -64,7 +64,7 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
       onSubmit={handleSubmit(onSubmit)}
     >
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold leading-tight">Welcome back</h1>
+        <h1 className="text-2xl font-bold leading-tight">Sign in</h1>
         <p className="text-sm font-medium">
           Free to start. No credit card required.
         </p>
