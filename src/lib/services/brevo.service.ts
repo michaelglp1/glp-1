@@ -47,6 +47,7 @@ export class BrevoService {
   private static joinListId = process.env.BREVO_JOIN_LIST_ID; // List for users who just signed up
   private static registerListId = process.env.BREVO_REGISTER_LIST_ID; // List for users who completed registration
   private static subscribeListId = process.env.BREVO_SUBSCRIBE_LIST_ID; // List for users who subscribed (paid)
+  private static signupTemplateId = process.env.BREVO_SIGNUP_TEMPLATE_ID || "3"; // Template for signup welcome email
   private static baseUrl = "https://api.brevo.com/v3";
 
   private static getHeaders() {
@@ -438,6 +439,110 @@ export class BrevoService {
     } catch (error: any) {
       // Log error but don't throw - we want waitlist signup to succeed even if email fails
       console.error("Failed to send welcome email via Brevo:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send welcome email to new user after signup
+   * Uses Brevo template for easy updates via Brevo dashboard
+   */
+  static async sendSignupWelcomeEmail(
+    email: string,
+    firstName: string,
+    lastName: string,
+    params: Record<string, any> = {},
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      // Validate input
+      const validatedData = brevoEmailSchema.parse({
+        email,
+        name: `${firstName} ${lastName}`,
+        params,
+      });
+
+      // Skip if API key not configured
+      if (!this.apiKey) {
+        console.warn(
+          "Brevo API key not configured. Skipping signup welcome email.",
+        );
+        return { success: false, error: "Brevo not configured" };
+      }
+
+      const bodyContent = `Hi ${firstName},
+
+Welcome to My Daily Health Journal! We're excited to have you on board.
+
+Your account has been successfully created with the ${validatedData.params?.PLAN || "Free"} plan.
+
+Here's what you can do next:
+✓ Complete your health profile
+✓ Start tracking your daily health metrics
+✓ Set up your medication reminders
+✓ Connect with your healthcare providers
+
+Get Started: ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard
+
+If you have any questions, feel free to reach out to our support team.
+
+Best regards,
+The My Daily Health Journal Team`;
+
+      const emailRequest: any = {
+        templateId: parseInt(this.signupTemplateId),
+        to: [
+          {
+            email: validatedData.email.toLowerCase().trim(),
+            name: validatedData.name,
+          },
+        ],
+        params: {
+          BODY: bodyContent,
+          subject: `Welcome to My Daily Health Journal, ${firstName}!`,
+          FIRSTNAME: firstName,
+          LASTNAME: lastName,
+          FULLNAME: `${firstName} ${lastName}`,
+          EMAIL: validatedData.email,
+          SIGNUP_DATE: new Date().toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
+          APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+          ...(validatedData.params || {}),
+        },
+        headers: {
+          "X-Mailin-custom": "signup_welcome|" + new Date().toISOString(),
+        },
+      };
+
+      const response = await fetch(`${this.baseUrl}/smtp/email`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify(emailRequest),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `Brevo email API error: ${response.status} - ${
+            errorData.message || "Unknown error"
+          }`,
+        );
+      }
+
+      const result: BrevoEmailResponse = await response.json();
+      console.log(
+        `Successfully sent signup welcome email to ${email} (Message ID: ${result.messageId})`,
+      );
+
+      return { success: true, messageId: result.messageId };
+    } catch (error: any) {
+      // Log error but don't throw - we want signup to succeed even if email fails
+      console.error(
+        "Failed to send signup welcome email via Brevo:",
+        error.message,
+      );
       return { success: false, error: error.message };
     }
   }

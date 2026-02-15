@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useSubscription } from "@/hooks/use-subscription";
 import { useEffect, useState } from "react";
 import {
-  Dialog, 
+  Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -123,15 +123,12 @@ export default function PlanCard() {
 
   // Define features for the premium plan
   const premiumFeatures = [
-const premiumFeatures = [
-  "Calorie counter (see why stalls happen)",
-  "GLP-1 tracker (dose + side effects)",
-  "Daily journal (symptoms + patterns)",
-  "Calendar (stay consistent)",
-  "Medication management",
-  "Export and print doctor-ready graphs",
-];
-,
+    "Calorie counter (see why stalls happen)",
+    "GLP-1 tracker (dose + side effects)",
+    "Daily journal (symptoms + patterns)",
+    "Calendar (stay consistent)",
+    "Medication management",
+    "Export and print doctor-ready graphs",
   ];
 
   if (!premiumPlan) {
@@ -160,7 +157,7 @@ const premiumFeatures = [
             {hasPremiumSubscription && (
               <span
                 className={`ml-2 px-2 py-0.5 text-xs rounded ${getStatusColor(
-                  subscription!.status
+                  subscription!.status,
                 )}`}
               >
                 {subscription!.status}
@@ -168,13 +165,14 @@ const premiumFeatures = [
             )}
           </h3>
           <div className="text-muted-foreground text-sm mb-7">
-  {premiumPlan.description ||
-    "Upgrade to premium for advanced features"}
-</div>
+            {premiumPlan.description ||
+              "Upgrade to premium for advanced features"}
+          </div>
 
-       <div className="text-sm font-medium text-foreground mb-4">
-  Free tracks weight, blood pressure, and blood sugar. Premium explains the trend with calories.
-</div>
+          <div className="text-sm font-medium text-foreground mb-4">
+            Free tracks weight, blood pressure, and blood sugar. Premium
+            explains the trend with calories.
+          </div>
 
           {/* Features Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4">
