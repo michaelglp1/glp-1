@@ -38,16 +38,20 @@ export function ForgotPasswordForm({
         },
         body: JSON.stringify({ email }),
       });
-      
+
       const data = await response.json();
-      
+
       if (!response.ok) {
         throw new Error(data.error || "Failed to send reset email");
       }
-      
+
       setSuccess(true);
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred. Please try again.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "An error occurred. Please try again.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -59,18 +63,21 @@ export function ForgotPasswordForm({
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold">Forgot your password?</h1>
+        <h1 className="text-2xl font-bold">Need to log in?</h1>
         <p className="text-muted-foreground text-sm text-balance">
-          Enter your email and we will send you a reset link
+          Enter your email and we&apos;ll send you a secure login link
         </p>
       </div>
       {success ? (
         <div className="grid gap-6">
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded">
-            <p>Reset link sent! Check your email for instructions to reset your password.</p>
+            <p>
+              Login link sent! Check your email and click the link to access
+              your account.
+            </p>
           </div>
-          <Button 
-            size={"lg"} 
+          <Button
+            size={"lg"}
             className="w-full cursor-pointer"
             onClick={() => router.push("/login")}
           >
@@ -84,22 +91,20 @@ export function ForgotPasswordForm({
             <Input
               id="email"
               type="email"
-              placeholder="m@example.com"
+              placeholder="johndoe@example.com"
               className="h-11 text-lg"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
             />
           </div>
-          {error && (
-            <div className="text-red-500 text-sm">{error}</div>
-          )}
-          <Button 
-            size={"lg"} 
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+          <Button
+            size={"lg"}
             className="w-full cursor-pointer"
             disabled={isLoading}
           >
-            {isLoading ? "Sending..." : "Send Reset Link"}
+            {isLoading ? "Sending..." : "Send Login Link"}
           </Button>
         </div>
       )}

@@ -17,14 +17,14 @@ export async function hashPassword(password: string): Promise<string> {
 // Verify password against hash
 export async function verifyPassword(
   password: string,
-  hash: string
+  hash: string,
 ): Promise<boolean> {
   return bcrypt.compare(password, hash);
 }
 
 // Generate JWT token
 export async function generateToken(
-  payload: CustomJWTPayload
+  payload: CustomJWTPayload,
 ): Promise<string> {
   const secret = process.env.JWT_SECRET;
   if (!secret) {
@@ -84,12 +84,12 @@ export async function getUserFromRequest(request: NextRequest) {
         updatedAt: true,
       },
     });
-    
+
     // Return null if user is deactivated
     if (user && (user as any).isDeactivated) {
       return null;
     }
-    
+
     return user;
   } catch {
     return null;
@@ -134,12 +134,12 @@ export async function getUserWithProfileFromRequest(request: NextRequest) {
         profile: true,
       },
     });
-    
+
     // Return null if user is deactivated
     if (user && (user as any).isDeactivated) {
       return null;
     }
-    
+
     return user;
   } catch {
     return null;
@@ -162,25 +162,81 @@ export function validatePassword(password: string): boolean {
 // Generate a secure random password
 export function generateSecurePassword(): string {
   const length = 12;
-  const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-  const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const numbers = '0123456789';
-  const symbols = '!@#$%^&*';
+  const lowercase = "abcdefghijklmnopqrstuvwxyz";
+  const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const numbers = "0123456789";
+  const symbols = "!@#$%^&*";
   const allChars = lowercase + uppercase + numbers + symbols;
-  
-  let password = '';
-  
+
+  let password = "";
+
   // Ensure at least one character from each category
   password += lowercase[Math.floor(Math.random() * lowercase.length)];
   password += uppercase[Math.floor(Math.random() * uppercase.length)];
   password += numbers[Math.floor(Math.random() * numbers.length)];
   password += symbols[Math.floor(Math.random() * symbols.length)];
-  
+
   // Fill the rest randomly
   for (let i = 4; i < length; i++) {
     password += allChars[Math.floor(Math.random() * allChars.length)];
   }
-  
+
   // Shuffle the password
-  return password.split('').sort(() => Math.random() - 0.5).join('');
+  return password
+    .split("")
+    .sort(() => Math.random() - 0.5)
+    .join("");
+}
+
+// Generate a magic link token for passwordless authentication
+export async function generateMagicLinkToken(userId: string): Promise<string> {
+  const crypto = await import("crypto");
+  const token = crypto.randomBytes(32).toString("hex");
+
+  // Token expires in 24 hours
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await prisma.passwordResetToken.create({
+    data: {
+      token,
+      userId,
+      type: "magic_link",
+      expiresAt,
+    },
+  });
+
+  return token;
+}
+
+// Verify magic link token and return user ID
+export async function verifyMagicLinkToken(
+  token: string,
+): Promise<{ userId: string; valid: boolean; error?: string }> {
+  const tokenRecord = await prisma.passwordResetToken.findUnique({
+    where: { token },
+  });
+
+  if (!tokenRecord) {
+    return { userId: "", valid: false, error: "Invalid token" };
+  }
+
+  if (tokenRecord.type !== "magic_link") {
+    return { userId: "", valid: false, error: "Invalid token type" };
+  }
+
+  if (tokenRecord.used) {
+    return { userId: "", valid: false, error: "Token already used" };
+  }
+
+  if (tokenRecord.expiresAt < new Date()) {
+    return { userId: "", valid: false, error: "Token expired" };
+  }
+
+  // Mark token as used
+  await prisma.passwordResetToken.update({
+    where: { id: tokenRecord.id },
+    data: { used: true },
+  });
+
+  return { userId: tokenRecord.userId, valid: true };
 }

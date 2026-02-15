@@ -4,8 +4,8 @@ import {
   hashPassword,
   generateToken,
   validateEmail,
-  validatePassword,
   generateSecurePassword,
+  generateMagicLinkToken,
 } from "@/lib/auth";
 import { BrevoService } from "@/lib/services/brevo.service";
 
@@ -118,11 +118,15 @@ export async function POST(request: NextRequest) {
       console.log(`[BREVO SUCCESS] Added ${email} to join list`);
     }
 
-    // Send welcome email (non-blocking - won't fail signup)
+    // Generate magic link token for passwordless authentication
+    const magicLinkToken = await generateMagicLinkToken(result.user.id);
+
+    // Send welcome email with magic link (non-blocking - won't fail signup)
     const emailResult = await BrevoService.sendSignupWelcomeEmail(
       email,
       firstName,
       lastName,
+      magicLinkToken,
     );
 
     if (!emailResult.success) {

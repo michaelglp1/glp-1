@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
-import crypto from 'crypto';
-import { prisma } from '@/lib/prisma';
-import { emailService } from '@/lib/services/email.service';
-import { validateEmail } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { validateEmail, generateMagicLinkToken } from "@/lib/auth";
+import { BrevoService } from "@/lib/services/brevo.service";
 
 const requestPasswordResetSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().email("Invalid email address"),
 });
 
 export async function POST(request: NextRequest) {
@@ -17,32 +16,33 @@ export async function POST(request: NextRequest) {
     // Validate email format
     if (!validateEmail(email)) {
       return NextResponse.json(
-        { error: 'Invalid email address' },
-        { status: 400 }
+        { error: "Invalid email address" },
+        { status: 400 },
       );
     }
 
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },
+      include: {
+        profile: true,
+      },
     });
 
     // Always return success to prevent email enumeration
     // Even if user doesn't exist, we pretend to send an email
     if (!user) {
       return NextResponse.json({
-        message: 'If an account with that email exists, we have sent a password reset link.',
+        message:
+          "If an account with that email exists, we have sent a login link.",
       });
     }
 
-    // Generate secure reset token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-
-    // Invalidate any existing reset tokens for this user
+    // Invalidate any existing magic link tokens for this user
     await prisma.passwordResetToken.updateMany({
       where: {
         userId: user.id,
+        type: "magic_link",
         used: false,
         expiresAt: {
           gt: new Date(),
@@ -53,40 +53,39 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create new reset token
-    await prisma.passwordResetToken.create({
-      data: {
-        token: resetToken,
-        userId: user.id,
-        expiresAt,
-      },
-    });
+    // Generate new magic link token
+    const magicLinkToken = await generateMagicLinkToken(user.id);
 
-    // Send reset email
+    // Send login link email via Brevo
     try {
-      await emailService.sendPasswordResetEmail(user.email, resetToken);
+      await BrevoService.sendLoginLinkEmail(
+        user.email,
+        user.profile?.firstName || user.email.split("@")[0],
+        magicLinkToken,
+      );
     } catch (emailError) {
-      console.error('Failed to send password reset email:', emailError);
+      console.error("Failed to send login link email:", emailError);
       // Don't expose email sending errors to the client
       // Still return success to prevent information leakage
     }
 
     return NextResponse.json({
-      message: 'If an account with that email exists, we have sent a password reset link.',
+      message:
+        "If an account with that email exists, we have sent a login link.",
     });
   } catch (error) {
-    console.error('Password reset request error:', error);
+    console.error("Login link request error:", error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Invalid request data', details: error.issues },
-        { status: 400 }
+        { error: "Invalid request data", details: error.issues },
+        { status: 400 },
       );
     }
 
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      { error: "Internal server error" },
+      { status: 500 },
     );
   }
 }

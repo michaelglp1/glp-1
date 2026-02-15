@@ -47,7 +47,6 @@ export class BrevoService {
   private static joinListId = process.env.BREVO_JOIN_LIST_ID; // List for users who just signed up
   private static registerListId = process.env.BREVO_REGISTER_LIST_ID; // List for users who completed registration
   private static subscribeListId = process.env.BREVO_SUBSCRIBE_LIST_ID; // List for users who subscribed (paid)
-  private static signupTemplateId = process.env.BREVO_SIGNUP_TEMPLATE_ID || "3"; // Template for signup welcome email
   private static baseUrl = "https://api.brevo.com/v3";
 
   private static getHeaders() {
@@ -451,6 +450,7 @@ export class BrevoService {
     email: string,
     firstName: string,
     lastName: string,
+    magicLinkToken?: string,
     params: Record<string, any> = {},
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
@@ -469,7 +469,12 @@ export class BrevoService {
         return { success: false, error: "Brevo not configured" };
       }
 
-      const dashboardUrl = "https://mydailyhealthjournal.com/home";
+      // Use magic link if provided, otherwise use regular dashboard URL
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "https://mydailyhealthjournal.com";
+      const dashboardUrl = magicLinkToken
+        ? `${baseUrl}/auth/verify?token=${magicLinkToken}`
+        : `${baseUrl}/home`;
 
       // HTML email content based on Michael's copy
       const htmlContent = `
@@ -510,7 +515,7 @@ export class BrevoService {
           <tr>
             <td align="center" style="padding: 0 40px 30px 40px;">
               <a href="${dashboardUrl}" style="display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;">
-                Open Free Dashboard
+                Go to Free Dashboard
               </a>
             </td>
           </tr>
@@ -522,7 +527,7 @@ export class BrevoService {
                 If you have questions, reply to this email.
               </p>
               <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
-                — Michael
+                — MDHJ
               </p>
             </td>
           </tr>
@@ -693,6 +698,151 @@ export class BrevoService {
     } catch (error: any) {
       // Log error but don't throw - we want subscription to succeed even if Brevo fails
       console.error("Failed to add subscribed user to Brevo:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Send login link email to user (passwordless authentication)
+   * Sends transactional email with HTML content directly
+   */
+  static async sendLoginLinkEmail(
+    email: string,
+    firstName: string,
+    magicLinkToken: string,
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      // Validate input
+      const validatedData = brevoEmailSchema.parse({
+        email,
+        name: firstName,
+      });
+
+      // Skip if API key not configured
+      if (!this.apiKey) {
+        console.warn(
+          "Brevo API key not configured. Skipping login link email.",
+        );
+        return { success: false, error: "Brevo not configured" };
+      }
+
+      const baseUrl =
+        process.env.NEXT_PUBLIC_APP_URL || "https://mydailyhealthjournal.com";
+      const loginUrl = `${baseUrl}/auth/verify?token=${magicLinkToken}`;
+
+      // HTML email content
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login to My Daily Health Journal</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <!-- Header with Brand Name -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px;">
+              <p style="margin: 0 0 30px 0; font-size: 20px; font-weight: 700; color: #1f2937; text-align: center;">
+                My Daily Health Journal
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Email Content -->
+          <tr>
+            <td style="padding: 0 40px 30px 40px;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #333333;">
+                Hi ${firstName},
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #333333;">
+                We received a request to log in to your My Daily Health Journal account. Click the button below to securely access your dashboard.
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #333333;">
+                If you didn't request this, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- CTA Button -->
+          <tr>
+            <td align="center" style="padding: 0 40px 30px 40px;">
+              <a href="${loginUrl}" style="display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;">
+                Log In to Your Account
+              </a>
+            </td>
+          </tr>
+          
+          <!-- Footer Text -->
+          <tr>
+            <td style="padding: 0 40px 40px 40px;">
+              <p style="margin: 0 0 20px 0; font-size: 14px; line-height: 1.6; color: #666666;">
+                This link will expire in 24 hours for security reasons.
+              </p>
+              <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #666666;">
+                If you have questions, reply to this email.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+      const emailRequest: any = {
+        sender: {
+          name: "My Daily Health Journal",
+          email:
+            process.env.BREVO_SENDER_EMAIL ||
+            "noreply@mydailyhealthjournal.com",
+        },
+        to: [
+          {
+            email: validatedData.email.toLowerCase().trim(),
+            name: validatedData.name,
+          },
+        ],
+        subject: "Log in to My Daily Health Journal",
+        htmlContent: htmlContent,
+        headers: {
+          "X-Mailin-custom": "login_link|" + new Date().toISOString(),
+        },
+        tags: ["login", "magic-link"],
+      };
+
+      const response = await fetch(`${this.baseUrl}/smtp/email`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify(emailRequest),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          `Brevo email API error: ${response.status} - ${
+            errorData.message || "Unknown error"
+          }`,
+        );
+      }
+
+      const result: BrevoEmailResponse = await response.json();
+      console.log(
+        `Successfully sent login link email to ${email} (Message ID: ${result.messageId})`,
+      );
+
+      return { success: true, messageId: result.messageId };
+    } catch (error: any) {
+      // Log error but don't throw - we want the request to succeed even if email fails
+      console.error(
+        "Failed to send login link email via Brevo:",
+        error.message,
+      );
       return { success: false, error: error.message };
     }
   }

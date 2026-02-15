@@ -164,7 +164,7 @@ export default function PendingPage() {
               </p>
             </div>
 
-            <div className="animate-spin w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full mx-auto" />
+            <div className="animate-spin [animation-duration:0.4s] w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full mx-auto" />
           </>
         )}
 
