@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     if (!email || typeof email !== "string") {
       return NextResponse.json(
         { error: "Email is required and must be a string" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -22,20 +22,22 @@ export async function POST(request: NextRequest) {
     });
 
     // Add to Brevo email list (non-blocking - won't fail the main operation)
-    const brevoResult = await BrevoService.addContactToList(
+    const brevoResult = await BrevoService.addContactToWaitlist(
       waitlistEntry.email,
       {
         SOURCE: waitlistEntry.source,
         SIGNUP_DATE: waitlistEntry.createdAt.toISOString(),
-        ...(waitlistEntry.metadata && typeof waitlistEntry.metadata === 'object' ? waitlistEntry.metadata : {}),
-      }
+        ...(waitlistEntry.metadata && typeof waitlistEntry.metadata === "object"
+          ? waitlistEntry.metadata
+          : {}),
+      },
     );
 
     // Log Brevo result but don't fail the request
     if (!brevoResult.success) {
       console.warn(
         `Failed to add ${waitlistEntry.email} to Brevo:`,
-        brevoResult.error
+        brevoResult.error,
       );
     }
 
@@ -45,15 +47,17 @@ export async function POST(request: NextRequest) {
       undefined, // name - will be extracted from email
       {
         SOURCE: waitlistEntry.source,
-        WAITLIST_POSITION: await WaitlistService.getWaitlistStats().then(stats => stats.total),
-      }
+        WAITLIST_POSITION: await WaitlistService.getWaitlistStats().then(
+          (stats) => stats.total,
+        ),
+      },
     );
 
     // Log email result but don't fail the request
     if (!emailResult.success) {
       console.warn(
         `Failed to send welcome email to ${waitlistEntry.email}:`,
-        emailResult.error
+        emailResult.error,
       );
     }
 
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message.includes("already exists")) {
       return NextResponse.json(
         { error: "Email is already on the waitlist" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -91,13 +95,13 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message.includes("Unique constraint")) {
       return NextResponse.json(
         { error: "Email is already on the waitlist" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -116,7 +120,7 @@ export async function GET(request: NextRequest) {
     console.error("Error getting waitlist stats:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -130,7 +134,7 @@ export async function DELETE(request: NextRequest) {
     if (!email) {
       return NextResponse.json(
         { error: "Email parameter is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -140,7 +144,7 @@ export async function DELETE(request: NextRequest) {
     if (!removed) {
       return NextResponse.json(
         { error: "Email not found on waitlist" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -158,7 +162,7 @@ export async function DELETE(request: NextRequest) {
     console.error("Error removing from waitlist:", error);
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

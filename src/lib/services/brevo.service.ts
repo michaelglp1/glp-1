@@ -44,6 +44,9 @@ const brevoEmailSchema = z.object({
 export class BrevoService {
   private static apiKey = process.env.BREVO_API_KEY;
   private static waitlistId = process.env.BREVO_WAITLIST_ID;
+  private static joinListId = process.env.BREVO_JOIN_LIST_ID; // List for users who just signed up
+  private static registerListId = process.env.BREVO_REGISTER_LIST_ID; // List for users who completed registration
+  private static subscribeListId = process.env.BREVO_SUBSCRIBE_LIST_ID; // List for users who subscribed (paid)
   private static baseUrl = "https://api.brevo.com/v3";
 
   private static getHeaders() {
@@ -58,12 +61,12 @@ export class BrevoService {
   }
 
   /**
-   * Add a contact to Brevo email list
+   * Add a contact to Brevo waitlist
    * This method is designed to be non-blocking - it won't throw errors that would break the main flow
    */
-  static async addContactToList(
+  static async addContactToWaitlist(
     email: string,
-    attributes: Record<string, any> = {}
+    attributes: Record<string, any> = {},
   ): Promise<{ success: boolean; error?: string }> {
     try {
       // Validate input
@@ -76,7 +79,7 @@ export class BrevoService {
       // Skip if API key or waitlist ID not configured
       if (!this.apiKey || !this.waitlistId) {
         console.warn(
-          "Brevo API key or waitlist ID not configured. Skipping email list addition."
+          "Brevo API key or waitlist ID not configured. Skipping email list addition.",
         );
         return { success: false, error: "Brevo not configured" };
       }
@@ -114,19 +117,180 @@ export class BrevoService {
         throw new Error(
           `Brevo API error: ${response.status} - ${
             errorData.message || "Unknown error"
-          }`
+          }`,
         );
       }
 
       const result: BrevoResponse = await response.json();
       console.log(
-        `Successfully added ${email} to Brevo list (ID: ${result.id})`
+        `Successfully added ${email} to Brevo waitlist (ID: ${result.id})`,
       );
 
       return { success: true };
     } catch (error: any) {
       // Log error but don't throw - we want waitlist signup to succeed even if Brevo fails
-      console.error("Failed to add contact to Brevo:", error.message);
+      console.error("Failed to add contact to Brevo waitlist:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Add a user who just joined (incomplete profile) to Brevo join list
+   * This method is designed to be non-blocking - it won't throw errors that would break the main flow
+   */
+  static async addJoinedUser(
+    email: string,
+    firstName: string,
+    lastName: string,
+    plan: string = "free",
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Validate input
+      const validatedData = brevoContactSchema.parse({
+        email,
+        attributes: {
+          FIRSTNAME: firstName,
+          LASTNAME: lastName,
+          PLAN: plan,
+          SOURCE: "app_signup",
+          CREATED_AT: new Date().toISOString(),
+        },
+        listIds: this.joinListId ? [parseInt(this.joinListId)] : undefined,
+      });
+
+      // Skip if API key or join list ID not configured
+      if (!this.apiKey || !this.joinListId) {
+        console.warn(
+          "Brevo API key or join list ID not configured. Skipping email list addition.",
+        );
+        return { success: false, error: "Brevo not configured" };
+      }
+
+      const contact: BrevoContact = {
+        email: validatedData.email.toLowerCase().trim(),
+        attributes: validatedData.attributes,
+        listIds: validatedData.listIds,
+        updateEnabled: true, // Update contact if already exists
+      };
+
+      const response = await fetch(`${this.baseUrl}/contacts`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify(contact),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        // Handle specific Brevo errors gracefully
+        if (
+          response.status === 400 &&
+          errorData.code === "duplicate_parameter"
+        ) {
+          // Contact already exists - this is okay
+          console.log(`Contact ${email} already exists in Brevo join list`);
+          return { success: true };
+        }
+
+        throw new Error(
+          `Brevo API error: ${response.status} - ${
+            errorData.message || "Unknown error"
+          }`,
+        );
+      }
+
+      const result: BrevoResponse = await response.json();
+      console.log(
+        `Successfully added ${email} to Brevo join list (ID: ${result.id})`,
+      );
+
+      return { success: true };
+    } catch (error: any) {
+      // Log error but don't throw - we want signup to succeed even if Brevo fails
+      console.error("Failed to add joined user to Brevo:", error.message);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Add a user who completed registration to Brevo registered list
+   * This method is designed to be non-blocking - it won't throw errors that would break the main flow
+   */
+  static async addRegisteredUser(
+    email: string,
+    firstName: string,
+    lastName: string,
+    plan: string = "free",
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Validate input
+      const validatedData = brevoContactSchema.parse({
+        email,
+        attributes: {
+          FIRSTNAME: firstName,
+          LASTNAME: lastName,
+          PLAN: plan,
+          SOURCE: "app_signup",
+          CREATED_AT: new Date().toISOString(),
+          REGISTERED_AT: new Date().toISOString(),
+        },
+        listIds: this.registerListId
+          ? [parseInt(this.registerListId)]
+          : undefined,
+      });
+
+      // Skip if API key or list ID not configured
+      if (!this.apiKey || !this.registerListId) {
+        console.warn(
+          "Brevo API key or registered list ID not configured. Skipping email list addition.",
+        );
+        return { success: false, error: "Brevo not configured" };
+      }
+
+      const contact: BrevoContact = {
+        email: validatedData.email.toLowerCase().trim(),
+        attributes: validatedData.attributes,
+        listIds: validatedData.listIds,
+        updateEnabled: true, // Update contact if already exists
+      };
+
+      const response = await fetch(`${this.baseUrl}/contacts`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify(contact),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        // Handle specific Brevo errors gracefully
+        if (
+          response.status === 400 &&
+          errorData.code === "duplicate_parameter"
+        ) {
+          // Contact already exists - update them instead
+          console.log(
+            `Contact ${email} already exists, updating to registered list`,
+          );
+          return { success: true };
+        }
+
+        throw new Error(
+          `Brevo API error: ${response.status} - ${
+            errorData.message || "Unknown error"
+          }`,
+        );
+      }
+
+      const result: BrevoResponse = await response.json();
+      console.log(
+        `Successfully added ${email} to Brevo registered list (ID: ${result.id})`,
+      );
+
+      return { success: true };
+    } catch (error: any) {
+      // Log error but don't throw - we want registration to succeed even if Brevo fails
+      console.error("Failed to add registered user to Brevo:", error.message);
       return { success: false, error: error.message };
     }
   }
@@ -135,7 +299,7 @@ export class BrevoService {
    * Remove a contact from Brevo email list
    */
   static async removeContactFromList(
-    email: string
+    email: string,
   ): Promise<{ success: boolean; error?: string }> {
     try {
       if (!this.apiKey) {
@@ -147,7 +311,7 @@ export class BrevoService {
         {
           method: "DELETE",
           headers: this.getHeaders(),
-        }
+        },
       );
 
       if (!response.ok && response.status !== 404) {
@@ -155,7 +319,7 @@ export class BrevoService {
         throw new Error(
           `Brevo API error: ${response.status} - ${
             errorData.message || "Unknown error"
-          }`
+          }`,
         );
       }
 
@@ -171,7 +335,7 @@ export class BrevoService {
    * Get contact information from Brevo
    */
   static async getContact(
-    email: string
+    email: string,
   ): Promise<{ success: boolean; contact?: any; error?: string }> {
     try {
       if (!this.apiKey) {
@@ -183,7 +347,7 @@ export class BrevoService {
         {
           method: "GET",
           headers: this.getHeaders(),
-        }
+        },
       );
 
       if (response.status === 404) {
@@ -195,7 +359,7 @@ export class BrevoService {
         throw new Error(
           `Brevo API error: ${response.status} - ${
             errorData.message || "Unknown error"
-          }`
+          }`,
         );
       }
 
@@ -214,7 +378,7 @@ export class BrevoService {
   static async sendWaitlistWelcomeEmail(
     email: string,
     name?: string,
-    params: Record<string, any> = {}
+    params: Record<string, any> = {},
   ): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       // Validate input
@@ -226,9 +390,7 @@ export class BrevoService {
 
       // Skip if API key not configured
       if (!this.apiKey) {
-        console.warn(
-          "Brevo API key not configured. Skipping welcome email."
-        );
+        console.warn("Brevo API key not configured. Skipping welcome email.");
         return { success: false, error: "Brevo not configured" };
       }
 
@@ -237,18 +399,18 @@ export class BrevoService {
         to: [
           {
             email: validatedData.email.toLowerCase().trim(),
-            name: validatedData.name || validatedData.email.split('@')[0],
+            name: validatedData.name || validatedData.email.split("@")[0],
           },
         ],
         params: {
           // Default parameters yang bisa digunakan di template
           EMAIL: validatedData.email,
-          NAME: validatedData.name || validatedData.email.split('@')[0],
-          SIGNUP_DATE: new Date().toLocaleDateString('id-ID'),
+          NAME: validatedData.name || validatedData.email.split("@")[0],
+          SIGNUP_DATE: new Date().toLocaleDateString("id-ID"),
           ...validatedData.params,
         },
         headers: {
-          'X-Mailin-custom': 'waitlist_welcome|' + new Date().toISOString(),
+          "X-Mailin-custom": "waitlist_welcome|" + new Date().toISOString(),
         },
       };
 
@@ -263,13 +425,13 @@ export class BrevoService {
         throw new Error(
           `Brevo email API error: ${response.status} - ${
             errorData.message || "Unknown error"
-          }`
+          }`,
         );
       }
 
       const result: BrevoEmailResponse = await response.json();
       console.log(
-        `Successfully sent welcome email to ${email} (Message ID: ${result.messageId})`
+        `Successfully sent welcome email to ${email} (Message ID: ${result.messageId})`,
       );
 
       return { success: true, messageId: result.messageId };
@@ -299,12 +461,95 @@ export class BrevoService {
         throw new Error(
           `Brevo API error: ${response.status} - ${
             errorData.message || "Unknown error"
-          }`
+          }`,
         );
       }
 
       return { success: true };
     } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Add a user who subscribed (paid) to Brevo subscribe list
+   * This method is designed to be non-blocking - it won't throw errors that would break the main flow
+   */
+  static async addSubscribedUser(
+    email: string,
+    firstName: string,
+    lastName: string,
+    plan: string,
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Validate input
+      const validatedData = brevoContactSchema.parse({
+        email,
+        attributes: {
+          FIRSTNAME: firstName,
+          LASTNAME: lastName,
+          PLAN: plan,
+          SOURCE: "app_signup",
+          CREATED_AT: new Date().toISOString(),
+          SUBSCRIBED_AT: new Date().toISOString(),
+        },
+        listIds: this.subscribeListId
+          ? [parseInt(this.subscribeListId)]
+          : undefined,
+      });
+
+      // Skip if API key or list ID not configured
+      if (!this.apiKey || !this.subscribeListId) {
+        console.warn(
+          "Brevo API key or subscribe list ID not configured. Skipping email list addition.",
+        );
+        return { success: false, error: "Brevo not configured" };
+      }
+
+      const contact: BrevoContact = {
+        email: validatedData.email.toLowerCase().trim(),
+        attributes: validatedData.attributes,
+        listIds: validatedData.listIds,
+        updateEnabled: true, // Update contact if already exists
+      };
+
+      const response = await fetch(`${this.baseUrl}/contacts`, {
+        method: "POST",
+        headers: this.getHeaders(),
+        body: JSON.stringify(contact),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        // Handle specific Brevo errors gracefully
+        if (
+          response.status === 400 &&
+          errorData.code === "duplicate_parameter"
+        ) {
+          // Contact already exists - update them instead
+          console.log(
+            `Contact ${email} already exists, updating to subscribe list`,
+          );
+          return { success: true };
+        }
+
+        throw new Error(
+          `Brevo API error: ${response.status} - ${
+            errorData.message || "Unknown error"
+          }`,
+        );
+      }
+
+      const result: BrevoResponse = await response.json();
+      console.log(
+        `Successfully added ${email} to Brevo subscribe list (ID: ${result.id})`,
+      );
+
+      return { success: true };
+    } catch (error: any) {
+      // Log error but don't throw - we want subscription to succeed even if Brevo fails
+      console.error("Failed to add subscribed user to Brevo:", error.message);
       return { success: false, error: error.message };
     }
   }

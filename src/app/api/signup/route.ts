@@ -7,6 +7,7 @@ import {
   validatePassword,
   generateSecurePassword,
 } from "@/lib/auth";
+import { BrevoService } from "@/lib/services/brevo.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Email, first name, and last name are required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
     if (!validateEmail(email)) {
       return NextResponse.json(
         { success: false, error: "Invalid email format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
     if (existingUser) {
       return NextResponse.json(
         { success: false, error: "User with this email already exists" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     if (!freePlan) {
       return NextResponse.json(
         { success: false, error: "Free plan not available" },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -99,6 +100,24 @@ export async function POST(request: NextRequest) {
       return { user, profile, subscription };
     });
 
+    // Add to Brevo join list (non-blocking - won't fail signup)
+    const brevoResult = await BrevoService.addJoinedUser(
+      email,
+      firstName,
+      lastName,
+      "free",
+    );
+
+    // Log Brevo result but don't fail the request
+    if (!brevoResult.success) {
+      console.error(
+        `[BREVO ERROR] Failed to add ${email} to Brevo join list:`,
+        brevoResult.error,
+      );
+    } else {
+      console.log(`[BREVO SUCCESS] Added ${email} to join list`);
+    }
+
     // Generate JWT token
     const token = await generateToken({
       userId: result.user.id,
@@ -135,7 +154,7 @@ export async function POST(request: NextRequest) {
     console.error("Signup error:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { z } from "zod";
 import { db as prisma } from "@/lib/db";
+import { BrevoService } from "@/lib/services/brevo.service";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY is not set");
@@ -32,7 +33,7 @@ export class StripeService {
   static async createOrGetCustomer(
     userId: string,
     email: string,
-    name?: string
+    name?: string,
   ): Promise<string> {
     // Check if user already has a Stripe customer ID
     const user = await prisma.user.findUnique({
@@ -74,14 +75,14 @@ export class StripeService {
       name?: string;
       successUrl: string;
       cancelUrl: string;
-    }
+    },
   ) {
     const validated = createSubscriptionSchema.parse(data);
 
     const customerId = await this.createOrGetCustomer(
       validated.userId,
       data.email,
-      data.name
+      data.name,
     );
 
     const session = await stripe.checkout.sessions.create({
@@ -130,7 +131,7 @@ export class StripeService {
 
     // Find Stripe payment method
     const stripePaymentMethod = subscription.paymentMethods.find(
-      (pm: any) => pm.gateway === "STRIPE" && pm.gatewaySubId
+      (pm: any) => pm.gateway === "STRIPE" && pm.gatewaySubId,
     );
 
     if (!stripePaymentMethod?.gatewaySubId) {
@@ -158,7 +159,7 @@ export class StripeService {
     switch (event.type) {
       case "checkout.session.completed":
         await this.handleCheckoutCompleted(
-          event.data.object as Stripe.Checkout.Session
+          event.data.object as Stripe.Checkout.Session,
         );
         break;
 
@@ -172,13 +173,13 @@ export class StripeService {
 
       case "customer.subscription.updated":
         await this.handleSubscriptionUpdated(
-          event.data.object as Stripe.Subscription
+          event.data.object as Stripe.Subscription,
         );
         break;
 
       case "customer.subscription.deleted":
         await this.handleSubscriptionDeleted(
-          event.data.object as Stripe.Subscription
+          event.data.object as Stripe.Subscription,
         );
         break;
 
@@ -191,7 +192,7 @@ export class StripeService {
    * Handle successful checkout completion
    */
   private static async handleCheckoutCompleted(
-    session: Stripe.Checkout.Session
+    session: Stripe.Checkout.Session,
   ) {
     console.log("🛒 Processing checkout completion");
     console.log("📋 Session metadata:", session.metadata);
@@ -216,7 +217,7 @@ export class StripeService {
       session.subscription as string,
       {
         expand: ["default_payment_method"],
-      }
+      },
     );
 
     // Get plan details
@@ -254,7 +255,7 @@ export class StripeService {
         },
       });
       console.log(
-        `Updated existing subscription ${existingSubscription.id} for user ${userId} to plan ${planId}`
+        `Updated existing subscription ${existingSubscription.id} for user ${userId} to plan ${planId}`,
       );
     } else {
       // Create new subscription if none exists
@@ -272,7 +273,7 @@ export class StripeService {
         },
       });
       console.log(
-        `Created new subscription ${subscription.id} for user ${userId} with plan ${planId}`
+        `Created new subscription ${subscription.id} for user ${userId} with plan ${planId}`,
       );
     }
 
@@ -321,7 +322,7 @@ export class StripeService {
           },
         });
         console.log(
-          `Updated existing payment method ${existingPaymentMethod.id} for subscription ${subscription.id} with card details`
+          `Updated existing payment method ${existingPaymentMethod.id} for subscription ${subscription.id} with card details`,
         );
       } else {
         // Create new payment method with card details
@@ -336,10 +337,13 @@ export class StripeService {
           },
         });
         console.log(
-          `Created new payment method for subscription ${subscription.id} with card details`
+          `Created new payment method for subscription ${subscription.id} with card details`,
         );
       }
     }
+
+    // Add user to Brevo subscribe list (non-blocking)
+    await this.addUserToBrevoSubscribeList(userId, planId);
   }
 
   /**
@@ -453,7 +457,7 @@ export class StripeService {
     });
 
     console.log(
-      `User ${userId} downgraded to free plan due to payment failure`
+      `User ${userId} downgraded to free plan due to payment failure`,
     );
   }
 
@@ -461,7 +465,7 @@ export class StripeService {
    * Handle subscription updates
    */
   private static async handleSubscriptionUpdated(
-    stripeSubscription: Stripe.Subscription
+    stripeSubscription: Stripe.Subscription,
   ) {
     // Find payment method with this Stripe subscription ID
     const paymentMethod = await prisma.paymentMethod.findFirst({
@@ -474,7 +478,7 @@ export class StripeService {
     if (!paymentMethod) {
       console.error(
         "Payment method not found for subscription:",
-        stripeSubscription.id
+        stripeSubscription.id,
       );
       return;
     }
@@ -497,7 +501,7 @@ export class StripeService {
    * Handle subscription deletion
    */
   private static async handleSubscriptionDeleted(
-    stripeSubscription: Stripe.Subscription
+    stripeSubscription: Stripe.Subscription,
   ) {
     // Find payment method with this Stripe subscription ID
     const paymentMethod = await prisma.paymentMethod.findFirst({
@@ -510,7 +514,7 @@ export class StripeService {
     if (!paymentMethod) {
       console.error(
         "Payment method not found for subscription:",
-        stripeSubscription.id
+        stripeSubscription.id,
       );
       return;
     }
@@ -524,11 +528,65 @@ export class StripeService {
   }
 
   /**
+   * Add user to Brevo subscribe list after successful payment
+   */
+  private static async addUserToBrevoSubscribeList(
+    userId: string,
+    planId: string,
+  ) {
+    try {
+      // Get user and profile details
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          profile: true,
+        },
+      });
+
+      if (!user || !user.profile) {
+        console.warn(`User or profile not found for Brevo: ${userId}`);
+        return;
+      }
+
+      // Get plan name
+      const plan = await prisma.plan.findUnique({
+        where: { id: planId },
+      });
+
+      if (!plan) {
+        console.warn(`Plan not found for Brevo: ${planId}`);
+        return;
+      }
+
+      // Add to Brevo subscribe list
+      const brevoResult = await BrevoService.addSubscribedUser(
+        user.email,
+        user.profile.firstName,
+        user.profile.lastName,
+        plan.name.toLowerCase(),
+      );
+
+      if (!brevoResult.success) {
+        console.error(
+          `[BREVO ERROR] Failed to add ${user.email} to subscribe list:`,
+          brevoResult.error,
+        );
+      } else {
+        console.log(
+          `[BREVO SUCCESS] Added ${user.email} to subscribe list with plan ${plan.name}`,
+        );
+      }
+    } catch (error) {
+      console.error("Error adding user to Brevo subscribe list:", error);
+    }
+  }
+
+  /**
    * Verify webhook signature
    */
   static verifyWebhookSignature(
     payload: string,
-    signature: string
+    signature: string,
   ): Stripe.Event {
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 

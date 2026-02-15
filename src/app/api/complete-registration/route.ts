@@ -6,6 +6,7 @@ import {
   validatePassword,
   getUserFromRequest,
 } from "@/lib/auth";
+import { BrevoService } from "@/lib/services/brevo.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json(
         { success: false, error: "Not authenticated" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
           success: false,
           error: "Email, first name, last name, and password are required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
     if (!validateEmail(email)) {
       return NextResponse.json(
         { success: false, error: "Invalid email format" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
           error:
             "Password must be at least 8 characters long and contain at least one lowercase letter, one uppercase letter, and one number",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     if (email !== user.email) {
       return NextResponse.json(
         { success: false, error: "Email does not match authenticated user" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -64,40 +65,58 @@ export async function POST(request: NextRequest) {
     const hashedPassword = await hashPassword(password);
 
     // Update user password and profile
-      const result = await prisma.$transaction(async (tx) => {
-        // Update user password
-        const updatedUser = await tx.user.update({
-          where: { id: user.id },
-          data: {
-            password: hashedPassword,
-          },
-        });
-
-        // Update or create profile with completion status
-         const updatedProfile = await tx.profile.upsert({
-           where: { id: user.id },
-           update: {
-             firstName,
-             lastName,
-             isComplete: true,
-           },
-           create: {
-             id: user.id,
-             firstName,
-             lastName,
-             isComplete: true,
-           },
-           select: {
-             id: true,
-             firstName: true,
-             lastName: true,
-             phoneNumber: true,
-             isComplete: true,
-           },
-         });
-
-        return { user: updatedUser, profile: updatedProfile };
+    const result = await prisma.$transaction(async (tx) => {
+      // Update user password
+      const updatedUser = await tx.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+        },
       });
+
+      // Update or create profile with completion status
+      const updatedProfile = await tx.profile.upsert({
+        where: { id: user.id },
+        update: {
+          firstName,
+          lastName,
+          isComplete: true,
+        },
+        create: {
+          id: user.id,
+          firstName,
+          lastName,
+          isComplete: true,
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
+          isComplete: true,
+        },
+      });
+
+      return { user: updatedUser, profile: updatedProfile };
+    });
+
+    // Add to Brevo registered users list (non-blocking - won't fail registration)
+    const brevoResult = await BrevoService.addRegisteredUser(
+      email,
+      firstName,
+      lastName,
+      "free", // TODO: Get actual plan from subscription
+    );
+
+    // Log Brevo result but don't fail the request
+    if (!brevoResult.success) {
+      console.error(
+        `[BREVO ERROR] Failed to add ${email} to Brevo registered list:`,
+        brevoResult.error,
+      );
+    } else {
+      console.log(`[BREVO SUCCESS] Added ${email} to registered users list`);
+    }
 
     return NextResponse.json({
       success: true,
@@ -114,7 +133,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to complete registration",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
