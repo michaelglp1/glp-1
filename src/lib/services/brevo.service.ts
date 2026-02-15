@@ -444,8 +444,8 @@ export class BrevoService {
   }
 
   /**
-   * Send welcome email to new user after signup
-   * Uses Brevo template for easy updates via Brevo dashboard
+   * Send welcome email to new user after signup (v1 - no template)
+   * Sends transactional email with HTML content directly
    */
   static async sendSignupWelcomeEmail(
     email: string,
@@ -469,51 +469,89 @@ export class BrevoService {
         return { success: false, error: "Brevo not configured" };
       }
 
-      const bodyContent = `Hi ${firstName},
+      const dashboardUrl = "https://mydailyhealthjournal.com/home";
 
-Welcome to My Daily Health Journal! We're excited to have you on board.
-
-Your account has been successfully created with the ${validatedData.params?.PLAN || "Free"} plan.
-
-Here's what you can do next:
-✓ Complete your health profile
-✓ Start tracking your daily health metrics
-✓ Set up your medication reminders
-✓ Connect with your healthcare providers
-
-Get Started: ${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard
-
-If you have any questions, feel free to reach out to our support team.
-
-Best regards,
-The My Daily Health Journal Team`;
+      // HTML email content based on Michael's copy
+      const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to My Daily Health Journal</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td align="center" style="padding: 40px 0;">
+        <table role="presentation" style="width: 600px; max-width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <!-- Header with Brand Name -->
+          <tr>
+            <td style="padding: 40px 40px 20px 40px;">
+              <p style="margin: 0 0 30px 0; font-size: 20px; font-weight: 700; color: #1f2937; text-align: center;">
+                My Daily Health Journal
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Email Content -->
+          <tr>
+            <td style="padding: 0 40px 30px 40px;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #333333;">
+                Hi ${firstName} — welcome to My Daily Health Journal.
+              </p>
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #333333;">
+                Start with one quick entry (weight, blood pressure, or blood sugar). Your graphs update instantly so you can spot trends and pull them up anytime, including at appointments.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- CTA Button -->
+          <tr>
+            <td align="center" style="padding: 0 40px 30px 40px;">
+              <a href="${dashboardUrl}" style="display: inline-block; padding: 14px 32px; background-color: #2563eb; color: #ffffff; text-decoration: none; border-radius: 6px; font-size: 16px; font-weight: 600;">
+                Open Free Dashboard
+              </a>
+            </td>
+          </tr>
+          
+          <!-- Footer Text -->
+          <tr>
+            <td style="padding: 0 40px 40px 40px;">
+              <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #333333;">
+                If you have questions, reply to this email.
+              </p>
+              <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
+                — Michael
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 
       const emailRequest: any = {
-        templateId: parseInt(this.signupTemplateId),
+        sender: {
+          name: "Michael from My Daily Health Journal",
+          email:
+            process.env.BREVO_SENDER_EMAIL ||
+            "noreply@mydailyhealthjournal.com",
+        },
         to: [
           {
             email: validatedData.email.toLowerCase().trim(),
             name: validatedData.name,
           },
         ],
-        params: {
-          BODY: bodyContent,
-          subject: `Welcome to My Daily Health Journal, ${firstName}!`,
-          FIRSTNAME: firstName,
-          LASTNAME: lastName,
-          FULLNAME: `${firstName} ${lastName}`,
-          EMAIL: validatedData.email,
-          SIGNUP_DATE: new Date().toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          }),
-          APP_URL: process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-          ...(validatedData.params || {}),
-        },
+        subject: "Welcome to My Daily Health Journal",
+        htmlContent: htmlContent,
         headers: {
           "X-Mailin-custom": "signup_welcome|" + new Date().toISOString(),
         },
+        tags: ["signup", "welcome"],
       };
 
       const response = await fetch(`${this.baseUrl}/smtp/email`, {

@@ -118,27 +118,23 @@ export async function POST(request: NextRequest) {
       console.log(`[BREVO SUCCESS] Added ${email} to join list`);
     }
 
-    // TODO: Send welcome email - currently disabled pending template configuration
-    // Need to configure Brevo template #3 to accept the correct variable format
-    // const emailResult = await BrevoService.sendSignupWelcomeEmail(
-    //   email,
-    //   firstName,
-    //   lastName,
-    //   {
-    //     PLAN: "Free",
-    //   },
-    // );
-    //
-    // if (!emailResult.success) {
-    //   console.error(
-    //     `[EMAIL ERROR] Failed to send welcome email to ${email}:`,
-    //     emailResult.error,
-    //   );
-    // } else {
-    //   console.log(
-    //     `[EMAIL SUCCESS] Sent welcome email to ${email} (Message ID: ${emailResult.messageId})`,
-    //   );
-    // }
+    // Send welcome email (non-blocking - won't fail signup)
+    const emailResult = await BrevoService.sendSignupWelcomeEmail(
+      email,
+      firstName,
+      lastName,
+    );
+
+    if (!emailResult.success) {
+      console.error(
+        `[EMAIL ERROR] Failed to send welcome email to ${email}:`,
+        emailResult.error,
+      );
+    } else {
+      console.log(
+        `[EMAIL SUCCESS] Sent welcome email to ${email} (Message ID: ${emailResult.messageId})`,
+      );
+    }
 
     // Generate JWT token
     const token = await generateToken({
