@@ -535,7 +535,7 @@ export class BrevoService {
 
       const emailRequest: any = {
         sender: {
-          name: "Michael from My Daily Health Journal",
+          name: "My Daily Health Journal",
           email:
             process.env.BREVO_SENDER_EMAIL ||
             "noreply@mydailyhealthjournal.com",
