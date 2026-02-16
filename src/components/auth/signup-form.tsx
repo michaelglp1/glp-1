@@ -84,19 +84,19 @@ export function SignupForm({ className, ...props }: SignupFormProps) {
 
   return (
     <form
-      className={cn("flex flex-col gap-6", className)}
+      className={cn("flex flex-col gap-6 px-5", className)}
       {...props}
       onSubmit={handleSubmit(onSubmit)}
     >
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold leading-tight">
+      <div className="flex w-full flex-col">
+        <h1 className="text-3xl font-bold leading-tight">
           Let’s get to know you
         </h1>
-        <p className="text-muted-foreground text-sm text-balance">
-          Just a few details to personalize your experience.
-        </p>
-        <p className="text-sm font-medium">
+        <p className="font-medium mt-2">
           Free to start. No credit card required.
+        </p>
+        <p className="text-muted-foreground text-sm">
+          Just a few details to personalize your experience.
         </p>
       </div>
 
@@ -149,17 +149,38 @@ export function SignupForm({ className, ...props }: SignupFormProps) {
           )}
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
-          Join for free
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full h-11"
+          disabled={isLoading}
+        >
+          {isLoading ? "Creating account..." : "Join for free"}
         </Button>
       </div>
 
-      <div className="text-center text-sm">
-        Already joined?{" "}
-        <Link href="/login" className="underline underline-offset-4">
-          Log in
-        </Link>
+      {/* Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-slate-200"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-3 text-slate-500 font-medium">
+            Already have an account?{" "}
+          </span>
+        </div>
       </div>
+
+      <Button
+        type="button"
+        variant={"outline"}
+        size="lg"
+        className="w-full h-11 text-blue-700 hover:bg-primary/10 hover:text-blue-700"
+        disabled={isLoading}
+        onClick={() => router.push("/login")}
+      >
+        Back to Login
+      </Button>
     </form>
   );
 }

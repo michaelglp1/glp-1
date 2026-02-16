@@ -59,13 +59,13 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
 
   return (
     <form
-      className={cn("flex flex-col gap-6", className)}
+      className={cn("flex flex-col gap-6 px-5", className)}
       {...props}
       onSubmit={handleSubmit(onSubmit)}
     >
-      <div className="flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-bold leading-tight">Sign in</h1>
-        <p className="text-sm font-medium">
+      <div className="flex w-full flex-col">
+        <h1 className="text-3xl font-bold leading-tight">Sign in</h1>
+        <p className="font-medium mt-2">
           Free to start. No credit card required.
         </p>
         <p className="text-muted-foreground text-sm">
@@ -115,17 +115,38 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
           )}
         </div>
 
-        <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full h-11"
+          disabled={isLoading}
+        >
           {isLoading ? "Signing in..." : "Sign in"}
         </Button>
       </div>
 
-      <div className="text-center text-sm">
-        Don&apos;t have an account?{" "}
-        <Link href="/register" className="underline underline-offset-4">
-          Create your free account
-        </Link>
+      {/* Divider */}
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+          <div className="w-full border-t border-slate-200"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-3 text-slate-500 font-medium">
+            Don&apos;t have an account?{" "}
+          </span>
+        </div>
       </div>
+
+      <Button
+        type="button"
+        variant={"outline"}
+        size="lg"
+        className="w-full h-11 text-blue-700 hover:bg-primary/10 hover:text-blue-700"
+        disabled={isLoading}
+        onClick={() => router.push("/register")}
+      >
+        Create Free Account
+      </Button>
     </form>
   );
 }
