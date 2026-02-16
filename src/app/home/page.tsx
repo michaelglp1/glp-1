@@ -8,12 +8,12 @@ import PlanCard from "@/components/billing/plan-card";
 import { DateFilterProvider } from "@/contexts/date-filter-context";
 
 import { useAuth } from "@/contexts/auth-context";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { deduplicatedToast } from "@/lib/utils";
 
-export default function DashPage() {
+function DashPageContent() {
   // Get the current user from our custom auth context
   const { user, profile, hasPremiumSubscription } = useAuth();
   const searchParams = useSearchParams();
@@ -63,5 +63,19 @@ export default function DashPage() {
         <WeeklyCalendar headerButtonId="calendar-add-reminder-btn" />
       )}
     </>
+  );
+}
+
+export default function DashPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+        </div>
+      }
+    >
+      <DashPageContent />
+    </Suspense>
   );
 }

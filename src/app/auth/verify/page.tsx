@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Card } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/auth-context";
 
 type VerifyState = "verifying" | "success" | "error" | "invalid";
 
-export default function VerifyPage() {
+function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refreshUser } = useAuth();
@@ -152,5 +152,21 @@ export default function VerifyPage() {
         )}
       </Card>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-muted p-4">
+          <Card className="w-full max-w-md p-8 text-center">
+            <div className="animate-spin [animation-duration:0.4s] w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+          </Card>
+        </div>
+      }
+    >
+      <VerifyContent />
+    </Suspense>
   );
 }

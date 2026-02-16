@@ -4,6 +4,7 @@ import { ProfileInfo } from "@/components/account/profile-info";
 import { SecurityPrivacy } from "@/components/account/security-privacy";
 import { DangerZone } from "@/components/account/danger-zone";
 import { ConnectedApps } from "@/components/account/connected-apps";
+import { Suspense } from "react";
 // import Preferences from "@/components/account/Preferences";
 
 export default function AccountPage() {
@@ -21,7 +22,13 @@ export default function AccountPage() {
         <div className="grid gap-6">
           <ProfileInfo />
           <SecurityPrivacy />
-          <ConnectedApps />
+          <Suspense
+            fallback={
+              <div className="animate-pulse h-32 bg-gray-200 rounded" />
+            }
+          >
+            <ConnectedApps />
+          </Suspense>
           {/* <Preferences /> */}
           <DangerZone />
         </div>

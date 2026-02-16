@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { HealthCharts } from "@/components/dashboard/health-charts";
@@ -74,7 +74,7 @@ function PreviewPageContent() {
           const sourceY = (i * pageHeight) / ratio;
           const sourceHeight = Math.min(
             pageHeight / ratio,
-            imgHeight - sourceY
+            imgHeight - sourceY,
           );
 
           // Create a temporary canvas for this page
@@ -93,7 +93,7 @@ function PreviewPageContent() {
               0,
               0,
               imgWidth,
-              sourceHeight
+              sourceHeight,
             );
 
             const pageImgData = pageCanvas.toDataURL("image/png");
@@ -103,7 +103,7 @@ function PreviewPageContent() {
               x,
               y,
               scaledWidth,
-              sourceHeight * ratio
+              sourceHeight * ratio,
             );
           }
         }
@@ -203,7 +203,7 @@ function PreviewPageContent() {
   );
 }
 
-export default function PreviewPage() {
+function PreviewPageWrapper() {
   const { profile } = useAuth();
   const searchParams = useSearchParams();
 
@@ -219,18 +219,36 @@ export default function PreviewPage() {
   }
 
   // Parse URL parameters for initial date range
-  const startDate = searchParams.get('startDate');
-  const endDate = searchParams.get('endDate');
-  const initialDateRange = startDate && endDate
-    ? {
-        from: new Date(startDate),
-        to: new Date(endDate),
-      }
-    : undefined;
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
+  const initialDateRange =
+    startDate && endDate
+      ? {
+          from: new Date(startDate),
+          to: new Date(endDate),
+        }
+      : undefined;
 
   return (
     <DateFilterProvider initialDateRange={initialDateRange}>
       <PreviewPageContent />
     </DateFilterProvider>
+  );
+}
+
+export default function PreviewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full mx-auto mb-4" />
+            <p>Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <PreviewPageWrapper />
+    </Suspense>
   );
 }
