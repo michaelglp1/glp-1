@@ -6,12 +6,14 @@ import Image from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 type VerifyState = "verifying" | "success" | "error" | "invalid";
 
 export default function VerifyPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refreshUser } = useAuth();
   const [state, setState] = useState<VerifyState>("verifying");
   const [dots, setDots] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -56,8 +58,13 @@ export default function VerifyPage() {
           return;
         }
 
-        // Success - show success state briefly then redirect
+        // Success - refresh auth context to get the latest user data
         setState("success");
+
+        // Refresh the auth context with the new session
+        await refreshUser();
+
+        // Show success state briefly then redirect
         setTimeout(() => {
           router.push(data.redirectTo || "/home");
         }, 1500);

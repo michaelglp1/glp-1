@@ -6,6 +6,7 @@ import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persist
 import { useState } from "react";
 import { AuthProvider } from "@/contexts/auth-context";
 import { DateFilterProvider } from "@/contexts/date-filter-context";
+import { PostHogProvider } from "@/components/providers/posthog-provider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -22,7 +23,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
             networkMode: "offlineFirst", // Use cache first for instant navigation
           },
         },
-      })
+      }),
   );
 
   const [persister] = useState(() => {
@@ -46,7 +47,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
         }}
       >
         <AuthProvider>
-          <DateFilterProvider>{children}</DateFilterProvider>
+          <PostHogProvider>
+            <DateFilterProvider>{children}</DateFilterProvider>
+          </PostHogProvider>
         </AuthProvider>
       </PersistQueryClientProvider>
     );
@@ -55,7 +58,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <DateFilterProvider>{children}</DateFilterProvider>
+        <PostHogProvider>
+          <DateFilterProvider>{children}</DateFilterProvider>
+        </PostHogProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

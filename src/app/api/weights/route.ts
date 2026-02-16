@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getUserFromRequest } from '@/lib/auth';
-import { WeightService } from '@/lib/services/weight.service';
+import { NextRequest, NextResponse } from "next/server";
+import { getUserFromRequest } from "@/lib/auth";
+import { WeightService } from "@/lib/services/weight.service";
+import { trackFirstMetricIfNeeded } from "@/lib/services/first-metric-tracker";
 
 export async function POST(request: NextRequest) {
   try {
@@ -8,15 +9,18 @@ export async function POST(request: NextRequest) {
     const authUser = await getUserFromRequest(request);
     if (!authUser) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: "Authentication required" },
+        { status: 401 },
       );
     }
 
     const { weight, capturedDate } = await request.json();
 
-    if (!weight || typeof weight !== 'number') {
-      return NextResponse.json({ error: 'Weight is required and must be a number' }, { status: 400 });
+    if (!weight || typeof weight !== "number") {
+      return NextResponse.json(
+        { error: "Weight is required and must be a number" },
+        { status: 400 },
+      );
     }
 
     // Use current date if capturedDate is not provided
@@ -29,15 +33,21 @@ export async function POST(request: NextRequest) {
       profileId: authUser.id,
     });
 
+    // Track first metric entry if applicable
+    await trackFirstMetricIfNeeded(authUser.id, "weight");
+
     return NextResponse.json(weightEntry);
   } catch (error) {
-    console.error('Error creating weight entry:', error);
-    
-    if (error instanceof Error && error.message.includes('validation')) {
+    console.error("Error creating weight entry:", error);
+
+    if (error instanceof Error && error.message.includes("validation")) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -47,28 +57,28 @@ export async function GET(request: NextRequest) {
     const authUser = await getUserFromRequest(request);
     if (!authUser) {
       return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+        { error: "Authentication required" },
+        { status: 401 },
       );
     }
 
     // Get query parameters for date filtering
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
 
     let weights;
-    
+
     if (startDate && endDate) {
       // Use date range filtering if both dates are provided
       // Set start to beginning of day and end to end of day to handle timezone issues
-      const start = new Date(startDate + 'T00:00:00.000Z');
-      const end = new Date(endDate + 'T23:59:59.999Z');
-      
+      const start = new Date(startDate + "T00:00:00.000Z");
+      const end = new Date(endDate + "T23:59:59.999Z");
+
       weights = await WeightService.getWeightsByDateRange(
         authUser.id,
         start,
-        end
+        end,
       );
     } else {
       // Get all weights if no date range specified
@@ -77,7 +87,10 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(weights);
   } catch (error) {
-    console.error('Error fetching weight entries:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    console.error("Error fetching weight entries:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 },
+    );
   }
 }

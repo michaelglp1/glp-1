@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     "weight tracker",
     "blood pressure monitor",
     "health dashboard",
-    "medication tracker"
+    "medication tracker",
   ],
   authors: [{ name: "My Daily Health Journal" }],
   creator: "My Daily Health Journal",
@@ -40,9 +40,9 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
 };
@@ -55,31 +55,32 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "WebApplication",
-    "name": "My Daily Health Journal",
-    "alternateName": ["Daily Health Journal", "Health Tracker", "GLP-1 Tracker"],
-    "description": "Track weight, blood pressure, blood sugar, medications, and more — designed for GLP‑1 users, diabetics, and anyone committed to better health.",
-    "url": "https://mydailyhealthjournal.com",
-    "applicationCategory": "HealthApplication",
-    "operatingSystem": "Web Browser",
-    "offers": {
+    name: "My Daily Health Journal",
+    alternateName: ["Daily Health Journal", "Health Tracker", "GLP-1 Tracker"],
+    description:
+      "Track weight, blood pressure, blood sugar, medications, and more — designed for GLP‑1 users, diabetics, and anyone committed to better health.",
+    url: "https://mydailyhealthjournal.com",
+    applicationCategory: "HealthApplication",
+    operatingSystem: "Web Browser",
+    offers: {
       "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
+      price: "0",
+      priceCurrency: "USD",
     },
-    "featureList": [
+    featureList: [
       "Daily health journal",
       "GLP-1 medication tracking",
       "Weight tracking",
       "Blood pressure monitoring",
       "Blood sugar tracking",
       "Calorie logging",
-      "Health analytics"
+      "Health analytics",
     ],
-    "publisher": {
+    publisher: {
       "@type": "Organization",
-      "name": "My Daily Health Journal",
-      "url": "https://mydailyhealthjournal.com"
-    }
+      name: "My Daily Health Journal",
+      url: "https://mydailyhealthjournal.com",
+    },
   };
 
   return (
