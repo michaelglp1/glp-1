@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { initPostHog, analytics } from "@/lib/posthog";
 import { useAuth } from "@/contexts/auth-context";
 
-export function PostHogProvider({ children }: { children: React.ReactNode }) {
+function PostHogProviderInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -51,4 +51,12 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
   }, [pathname, user?.id]);
 
   return <>{children}</>;
+}
+
+export function PostHogProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<>{children}</>}>
+      <PostHogProviderInner>{children}</PostHogProviderInner>
+    </Suspense>
+  );
 }

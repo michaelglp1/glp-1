@@ -11,6 +11,22 @@ import { useAuth } from "@/contexts/auth-context";
 type VerifyState = "verifying" | "success" | "error" | "invalid";
 
 function VerifyContent() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-muted p-4">
+          <Card className="w-full max-w-md p-8 text-center">
+            <div className="animate-spin [animation-duration:0.4s] w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto" />
+          </Card>
+        </div>
+      }
+    >
+      <VerifyContentInner />
+    </Suspense>
+  );
+}
+
+function VerifyContentInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { refreshUser } = useAuth();
@@ -156,17 +172,5 @@ function VerifyContent() {
 }
 
 export default function VerifyPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-muted p-4">
-          <Card className="w-full max-w-md p-8 text-center">
-            <div className="animate-spin [animation-duration:0.4s] w-6 h-6 border-2 border-primary border-t-transparent rounded-full mx-auto" />
-          </Card>
-        </div>
-      }
-    >
-      <VerifyContent />
-    </Suspense>
-  );
+  return <VerifyContent />;
 }
