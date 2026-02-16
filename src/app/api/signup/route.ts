@@ -8,6 +8,7 @@ import {
   generateMagicLinkToken,
 } from "@/lib/auth";
 import { BrevoService } from "@/lib/services/brevo.service";
+import { serverAnalytics } from "@/lib/analytics-server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -139,6 +140,9 @@ export async function POST(request: NextRequest) {
         `[EMAIL SUCCESS] Sent welcome email to ${email} (Message ID: ${emailResult.messageId})`,
       );
     }
+
+    // Track signup completion
+    await serverAnalytics.signupCompleted(result.user.id, email);
 
     // Generate JWT token
     const token = await generateToken({

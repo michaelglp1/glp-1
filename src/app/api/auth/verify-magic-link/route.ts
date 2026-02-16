@@ -21,17 +21,59 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user details
+    // Get user details with profile
     const user = await prisma.user.findUnique({
       where: { id: result.userId },
-      include: {
-        profile: true,
+      select: {
+        id: true,
+        email: true,
+        profile: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            isComplete: true,
+          },
+        },
       },
     });
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    // Get user's current subscription with plan details (same as regular login)
+    const subscription = await prisma.subscription.findFirst({
+      where: {
+        userId: user.id,
+        status: "ACTIVE",
+      },
+      include: {
+        plan: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    const subscriptionData = subscription
+      ? {
+          id: subscription.id,
+          status: subscription.status,
+          currentPeriodStart: subscription.currentPeriodStart,
+          currentPeriodEnd: subscription.currentPeriodEnd,
+          cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+          plan: {
+            id: subscription.plan.id,
+            name: subscription.plan.name,
+            description: subscription.plan.description,
+            price: subscription.plan.price,
+            currency: subscription.plan.currency,
+            interval: subscription.plan.interval,
+            features: subscription.plan.features,
+          },
+        }
+      : null;
 
     // Generate JWT token for authentication
     const authToken = await generateToken({
@@ -50,8 +92,9 @@ export async function POST(request: NextRequest) {
       user: {
         id: user.id,
         email: user.email,
-        isProfileComplete: user.profile?.isComplete || false,
       },
+      profile: user.profile,
+      subscription: subscriptionData,
     });
 
     response.cookies.set("auth-token", authToken, {

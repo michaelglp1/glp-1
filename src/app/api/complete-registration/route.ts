@@ -7,6 +7,7 @@ import {
   getUserFromRequest,
 } from "@/lib/auth";
 import { BrevoService } from "@/lib/services/brevo.service";
+import { serverAnalytics } from "@/lib/analytics-server";
 
 export async function POST(request: NextRequest) {
   try {
@@ -117,6 +118,9 @@ export async function POST(request: NextRequest) {
     } else {
       console.log(`[BREVO SUCCESS] Added ${email} to registered users list`);
     }
+
+    // Track password set event
+    await serverAnalytics.passwordSet(user.id);
 
     return NextResponse.json({
       success: true,
