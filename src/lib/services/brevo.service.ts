@@ -527,7 +527,7 @@ export class BrevoService {
                 If you have questions, reply to this email.
               </p>
               <p style="margin: 0; font-size: 16px; line-height: 1.6; color: #333333;">
-                — MDHJ
+                — MDHJ Team
               </p>
             </td>
           </tr>
