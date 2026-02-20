@@ -16,6 +16,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
+import { analytics } from "@/lib/posthog";
+import { useEffect } from "react";
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -50,6 +52,13 @@ export function RegistrationPopup({
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
   const { refreshUser, updateProfileCompletion } = useAuth();
+
+  // Track onboarding_started when popup opens
+  useEffect(() => {
+    if (open && user?.id) {
+      analytics.onboardingStarted(user.id);
+    }
+  }, [open, user?.id]);
 
   const {
     register,
@@ -89,22 +98,25 @@ export function RegistrationPopup({
         throw new Error(result.error || "Registration completion failed");
       }
 
-      console.log('Registration completed successfully:', result);
-      
+      console.log("Registration completed successfully:", result);
+
+      // Track onboarding_completed
+      analytics.onboardingCompleted(user.id);
+
       // Immediately update profile completion status in cache
       updateProfileCompletion(true);
-      console.log('Profile completion status updated in cache');
-      
+      console.log("Profile completion status updated in cache");
+
       // Refresh user context to update profile completion status
-      console.log('Calling refreshUser...');
+      console.log("Calling refreshUser...");
       await refreshUser();
-      console.log('refreshUser completed');
-      
+      console.log("refreshUser completed");
+
       // Notify parent component of successful registration
       if (onRegistrationComplete) {
         onRegistrationComplete();
       }
-      
+
       // Close the popup
       onOpenChange(false);
     } catch (error: unknown) {
@@ -112,7 +124,7 @@ export function RegistrationPopup({
       setError(
         error instanceof Error
           ? error.message
-          : "An error occurred during registration completion"
+          : "An error occurred during registration completion",
       );
     } finally {
       setIsLoading(false);

@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Track first metric entry if applicable
-    await trackFirstMetricIfNeeded(user.id, "blood_pressure");
+    await trackFirstMetricIfNeeded(user.id, "bp");
 
     return NextResponse.json(bloodPressure, { status: 201 });
   } catch (error) {

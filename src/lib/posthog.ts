@@ -33,10 +33,13 @@ export const analytics = {
   },
 
   // Track first metric entry (activation event)
-  firstMetricEntry: (userId: string, metricType: string) => {
+  firstMetricEntry: (
+    userId: string,
+    metricType: "weight" | "bp" | "blood_sugar" | "food" | "meds",
+  ) => {
     posthog.capture("first_metric_entry", {
       userId,
-      metricType,
+      metric_type: metricType,
       timestamp: new Date().toISOString(),
     });
   },
@@ -45,6 +48,41 @@ export const analytics = {
   dashboardView: (userId: string) => {
     posthog.capture("dashboard_view", {
       userId,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Track onboarding started (registration popup shown)
+  onboardingStarted: (userId: string) => {
+    posthog.capture("onboarding_started", {
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Track onboarding completed (registration form submitted successfully)
+  onboardingCompleted: (userId: string) => {
+    posthog.capture("onboarding_completed", {
+      userId,
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Track upgrade click (user clicks Subscribe/Premium button)
+  upgradeClick: (userId: string, source: string) => {
+    posthog.capture("upgrade_click", {
+      userId,
+      source, // e.g., "plan_card", "paywall", "header"
+      timestamp: new Date().toISOString(),
+    });
+  },
+
+  // Track Stripe redirect (before redirecting to Stripe checkout)
+  stripeRedirect: (userId: string, planId: string, planName: string) => {
+    posthog.capture("stripe_redirect", {
+      userId,
+      planId,
+      planName,
       timestamp: new Date().toISOString(),
     });
   },

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/auth";
 import StripeService from "@/lib/services/stripe";
+import { analytics } from "@/lib/posthog";
 
 export async function GET(request: NextRequest) {
   try {
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
     if (!subscription) {
       return NextResponse.json(
         { success: false, error: "No active subscription found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
     console.error("Get subscription error:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
     if (!authUser) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
       if (!planId || !priceId) {
         return NextResponse.json(
           { success: false, error: "Plan ID and Price ID are required" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -96,6 +97,11 @@ export async function POST(request: NextRequest) {
         const baseUrl =
           process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
+        // Get plan details for tracking
+        const plan = await prisma.plan.findUnique({
+          where: { id: planId },
+        });
+
         const session = await StripeService.createCheckoutSession({
           userId: authUser.id,
           planId,
@@ -105,6 +111,11 @@ export async function POST(request: NextRequest) {
           successUrl: `${baseUrl}/billing/pending`,
           cancelUrl: `${baseUrl}/home/billing?canceled=true`,
         });
+
+        // Track stripe_redirect (before redirecting to Stripe)
+        if (plan) {
+          analytics.stripeRedirect(authUser.id, planId, plan.name);
+        }
 
         return NextResponse.json({
           success: true,
@@ -117,7 +128,7 @@ export async function POST(request: NextRequest) {
         console.error("Stripe checkout error:", error);
         return NextResponse.json(
           { success: false, error: "Failed to create checkout session" },
-          { status: 500 }
+          { status: 500 },
         );
       }
     }
@@ -134,7 +145,7 @@ export async function POST(request: NextRequest) {
       if (!subscription) {
         return NextResponse.json(
           { success: false, error: "No active subscription found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
 
@@ -153,20 +164,20 @@ export async function POST(request: NextRequest) {
         console.error("Cancel subscription error:", error);
         return NextResponse.json(
           { success: false, error: "Failed to cancel subscription" },
-          { status: 500 }
+          { status: 500 },
         );
       }
     }
 
     return NextResponse.json(
       { success: false, error: "Invalid action" },
-      { status: 400 }
+      { status: 400 },
     );
   } catch (error: unknown) {
     console.error("Update subscription error:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Track first metric entry if applicable
-    await trackFirstMetricIfNeeded(user.id, "glp1");
+    await trackFirstMetricIfNeeded(user.id, "meds");
 
     return NextResponse.json(glp1Entry, { status: 201 });
   } catch (error) {

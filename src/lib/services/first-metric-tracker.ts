@@ -6,20 +6,30 @@ import { serverAnalytics } from "@/lib/analytics-server";
  */
 export async function trackFirstMetricIfNeeded(
   userId: string,
-  metricType: string,
+  metricType: "weight" | "bp" | "blood_sugar" | "food" | "meds",
 ) {
   try {
     // Check if user has any previous metrics
-    const [weightCount, bloodPressureCount, bloodSugarCount, glp1Count] =
-      await Promise.all([
-        prisma.weight.count({ where: { profileId: userId } }),
-        prisma.bloodPressure.count({ where: { profileId: userId } }),
-        prisma.bloodSugar.count({ where: { profileId: userId } }),
-        prisma.glp1Entry.count({ where: { profileId: userId } }),
-      ]);
+    const [
+      weightCount,
+      bloodPressureCount,
+      bloodSugarCount,
+      glp1Count,
+      foodCount,
+    ] = await Promise.all([
+      prisma.weight.count({ where: { profileId: userId } }),
+      prisma.bloodPressure.count({ where: { profileId: userId } }),
+      prisma.bloodSugar.count({ where: { profileId: userId } }),
+      prisma.glp1Entry.count({ where: { profileId: userId } }),
+      prisma.foodIntake.count({ where: { profileId: userId } }),
+    ]);
 
     const totalMetrics =
-      weightCount + bloodPressureCount + bloodSugarCount + glp1Count;
+      weightCount +
+      bloodPressureCount +
+      bloodSugarCount +
+      glp1Count +
+      foodCount;
 
     // If this is their first metric (count is 1 after creation), track it
     if (totalMetrics === 1) {

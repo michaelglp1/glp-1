@@ -16,6 +16,7 @@ import {
 } from "../ui/dialog";
 import { CheckCheck, Crown, X } from "lucide-react";
 import { RegistrationPopup } from "../registration-popup";
+import { analytics } from "@/lib/posthog";
 
 interface PaywallCardProps {
   open: boolean;
@@ -51,6 +52,11 @@ export default function PaywallCard({
 
   const handleSubscribeClick = () => {
     if (!premiumPlan) return;
+
+    // Track upgrade_click
+    if (user?.id) {
+      analytics.upgradeClick(user.id, "paywall");
+    }
 
     // Check if profile is incomplete
     if (!profile?.isComplete) {

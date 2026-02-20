@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { z } from "zod";
 import { db as prisma } from "@/lib/db";
 import { BrevoService } from "@/lib/services/brevo.service";
+import { serverAnalytics } from "@/lib/analytics-server";
 
 if (!process.env.STRIPE_SECRET_KEY) {
   throw new Error("STRIPE_SECRET_KEY is not set");
@@ -344,6 +345,14 @@ export class StripeService {
 
     // Add user to Brevo subscribe list (non-blocking)
     await this.addUserToBrevoSubscribeList(userId, planId);
+
+    // Track subscription_success
+    await serverAnalytics.subscriptionSuccess(
+      userId,
+      planId,
+      plan.name,
+      Number(plan.price),
+    );
   }
 
   /**
@@ -422,6 +431,12 @@ export class StripeService {
         failureReason: "Payment failed - insufficient funds or card declined",
       },
     });
+
+    // Track payment_failed
+    await serverAnalytics.paymentFailed(
+      paymentMethod.subscription.userId,
+      "Payment failed - insufficient funds or card declined",
+    );
 
     // Downgrade to free plan after payment failure
     await this.downgradeToFreePlan(paymentMethod.subscription.userId);
@@ -509,6 +524,13 @@ export class StripeService {
         gateway: "STRIPE",
         gatewaySubId: stripeSubscription.id,
       },
+      include: {
+        subscription: {
+          include: {
+            plan: true,
+          },
+        },
+      },
     });
 
     if (!paymentMethod) {
@@ -525,6 +547,12 @@ export class StripeService {
         status: "CANCELED",
       },
     });
+
+    // Track subscription_canceled
+    await serverAnalytics.subscriptionCanceled(
+      paymentMethod.subscription.userId,
+      paymentMethod.subscription.planId,
+    );
   }
 
   /**

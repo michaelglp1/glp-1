@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { FoodIntakeService } from "@/lib/services/food-intake.service";
+import { trackFirstMetricIfNeeded } from "@/lib/services/first-metric-tracker";
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,15 +29,16 @@ export async function POST(request: NextRequest) {
     if (!mealType || !food || typeof calories !== "number") {
       return NextResponse.json(
         { error: "Missing required fields: mealType, food, calories" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Use service layer for business logic
     const capturedDateObj = capturedDate ? new Date(capturedDate) : new Date();
-    
+
     // Use client-provided dateCode or generate fallback if not provided
-    const finalDateCode = dateCode || 
+    const finalDateCode =
+      dateCode ||
       `${capturedDateObj.getDate().toString().padStart(2, "0")}${(capturedDateObj.getMonth() + 1).toString().padStart(2, "0")}${capturedDateObj.getFullYear()}`;
 
     const foodIntake = await FoodIntakeService.createFoodIntake({
@@ -54,6 +56,9 @@ export async function POST(request: NextRequest) {
       dateCode: finalDateCode,
     });
 
+    // Track first metric entry if applicable
+    await trackFirstMetricIfNeeded(user.id, "food");
+
     return NextResponse.json(foodIntake, { status: 201 });
   } catch (error) {
     console.error("Error creating food intake:", error);
@@ -62,21 +67,21 @@ export async function POST(request: NextRequest) {
       if (error.name === "ZodError") {
         return NextResponse.json(
           { error: "Invalid input data", details: error.message },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
       if (error.message === "Profile not found") {
         return NextResponse.json(
           { error: "Profile not found" },
-          { status: 404 }
+          { status: 404 },
         );
       }
     }
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -96,7 +101,7 @@ export async function DELETE(request: NextRequest) {
     if (!date) {
       return NextResponse.json(
         { error: "Date parameter is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -110,7 +115,7 @@ export async function DELETE(request: NextRequest) {
     // Use service layer to clear food intakes by dateCode
     const result = await FoodIntakeService.clearFoodIntakesByDateCode(
       user.id,
-      dateCode
+      dateCode,
     );
 
     return NextResponse.json({
@@ -126,7 +131,7 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -151,7 +156,7 @@ export async function GET(request: NextRequest) {
       // Get food intakes by dateCode
       foodIntakes = await FoodIntakeService.getFoodIntakesByDateCode(
         user.id,
-        dateCode
+        dateCode,
       );
     } else if (startDate && endDate) {
       // Parse the ISO date strings directly
@@ -162,7 +167,7 @@ export async function GET(request: NextRequest) {
       if (isNaN(start.getTime()) || isNaN(end.getTime())) {
         return NextResponse.json(
           { error: "Invalid date format. Please use ISO date strings." },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -172,7 +177,7 @@ export async function GET(request: NextRequest) {
       foodIntakes = await FoodIntakeService.getFoodIntakesByDateRange(
         user.id,
         start,
-        end
+        end,
       );
     } else {
       // Get all food intakes if no date range specified
@@ -189,7 +194,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       { error: "Internal server error" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

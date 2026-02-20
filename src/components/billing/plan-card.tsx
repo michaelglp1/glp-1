@@ -16,6 +16,7 @@ import {
 } from "../ui/dialog";
 import { CheckCheck, ArrowRight, Crown } from "lucide-react";
 import { RegistrationPopup } from "../registration-popup";
+import { analytics } from "@/lib/posthog";
 
 export default function PlanCard() {
   const {
@@ -46,6 +47,11 @@ export default function PlanCard() {
 
   const handleSubscribeClick = () => {
     if (!premiumPlan) return;
+
+    // Track upgrade_click
+    if (user?.id) {
+      analytics.upgradeClick(user.id, "plan_card");
+    }
 
     // Check if profile is incomplete
     if (!profile?.isComplete) {
