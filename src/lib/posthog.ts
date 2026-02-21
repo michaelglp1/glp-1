@@ -2,12 +2,20 @@ import posthog from "posthog-js";
 
 export function initPostHog() {
   if (typeof window !== "undefined") {
-    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY!, {
+    if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+      console.warn("PostHog key not found. Analytics will not be tracked.");
+      return posthog;
+    }
+
+    posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
       api_host:
         process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
       person_profiles: "identified_only",
       capture_pageview: false, // We'll manually capture pageviews
       capture_pageleave: true,
+      loaded: (posthog) => {
+        console.log("PostHog initialized successfully");
+      },
     });
   }
   return posthog;
@@ -54,6 +62,7 @@ export const analytics = {
 
   // Track onboarding started (registration popup shown)
   onboardingStarted: (userId: string) => {
+    console.log("📊 Tracking onboarding_started for user:", userId);
     posthog.capture("onboarding_started", {
       userId,
       timestamp: new Date().toISOString(),
@@ -62,6 +71,7 @@ export const analytics = {
 
   // Track onboarding completed (registration form submitted successfully)
   onboardingCompleted: (userId: string) => {
+    console.log("📊 Tracking onboarding_completed for user:", userId);
     posthog.capture("onboarding_completed", {
       userId,
       timestamp: new Date().toISOString(),
@@ -70,6 +80,12 @@ export const analytics = {
 
   // Track upgrade click (user clicks Subscribe/Premium button)
   upgradeClick: (userId: string, source: string) => {
+    console.log(
+      "📊 Tracking upgrade_click for user:",
+      userId,
+      "source:",
+      source,
+    );
     posthog.capture("upgrade_click", {
       userId,
       source, // e.g., "plan_card", "paywall", "header"

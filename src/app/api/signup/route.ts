@@ -144,6 +144,9 @@ export async function POST(request: NextRequest) {
     // Track signup completion
     await serverAnalytics.signupCompleted(result.user.id, email);
 
+    // Flush analytics to ensure event is sent
+    await serverAnalytics.flush();
+
     // Generate JWT token
     const token = await generateToken({
       userId: result.user.id,

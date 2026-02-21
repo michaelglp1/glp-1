@@ -122,6 +122,9 @@ export async function POST(request: NextRequest) {
     // Track password set event
     await serverAnalytics.passwordSet(user.id);
 
+    // Flush analytics to ensure event is sent
+    await serverAnalytics.flush();
+
     return NextResponse.json({
       success: true,
       message: "Registration completed successfully",

@@ -34,6 +34,8 @@ export async function trackFirstMetricIfNeeded(
     // If this is their first metric (count is 1 after creation), track it
     if (totalMetrics === 1) {
       await serverAnalytics.firstMetricEntry(userId, metricType);
+      // Flush analytics to ensure event is sent
+      await serverAnalytics.flush();
     }
   } catch (error) {
     // Don't fail the request if tracking fails

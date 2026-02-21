@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +17,6 @@ import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import { analytics } from "@/lib/posthog";
-import { useEffect } from "react";
 
 const registrationSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -56,6 +55,10 @@ export function RegistrationPopup({
   // Track onboarding_started when popup opens
   useEffect(() => {
     if (open && user?.id) {
+      console.log(
+        "🎯 Registration popup opened, tracking onboarding_started for user:",
+        user.id,
+      );
       analytics.onboardingStarted(user.id);
     }
   }, [open, user?.id]);
@@ -101,6 +104,7 @@ export function RegistrationPopup({
       console.log("Registration completed successfully:", result);
 
       // Track onboarding_completed
+      console.log("🎯 Tracking onboarding_completed for user:", user.id);
       analytics.onboardingCompleted(user.id);
 
       // Immediately update profile completion status in cache

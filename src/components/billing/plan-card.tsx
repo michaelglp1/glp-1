@@ -50,6 +50,11 @@ export default function PlanCard() {
 
     // Track upgrade_click
     if (user?.id) {
+      console.log(
+        "🎯 Tracking upgrade_click for user:",
+        user.id,
+        "source: plan_card",
+      );
       analytics.upgradeClick(user.id, "plan_card");
     }
 

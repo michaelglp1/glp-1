@@ -353,6 +353,9 @@ export class StripeService {
       plan.name,
       Number(plan.price),
     );
+
+    // Flush analytics to ensure event is sent
+    await serverAnalytics.flush();
   }
 
   /**
@@ -437,6 +440,9 @@ export class StripeService {
       paymentMethod.subscription.userId,
       "Payment failed - insufficient funds or card declined",
     );
+
+    // Flush analytics to ensure event is sent
+    await serverAnalytics.flush();
 
     // Downgrade to free plan after payment failure
     await this.downgradeToFreePlan(paymentMethod.subscription.userId);
@@ -553,6 +559,9 @@ export class StripeService {
       paymentMethod.subscription.userId,
       paymentMethod.subscription.planId,
     );
+
+    // Flush analytics to ensure event is sent
+    await serverAnalytics.flush();
   }
 
   /**

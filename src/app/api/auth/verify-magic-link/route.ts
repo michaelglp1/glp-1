@@ -25,6 +25,9 @@ export async function POST(request: NextRequest) {
     // Track welcome_email_click (magic link from welcome email)
     await serverAnalytics.welcomeEmailClick(result.userId);
 
+    // Flush analytics to ensure event is sent
+    await serverAnalytics.flush();
+
     // Get user details with profile
     const user = await prisma.user.findUnique({
       where: { id: result.userId },
